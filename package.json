@@ -1,0 +1,24 @@
+{
+  "name": "whatsappgateway",
+  "version": "1.0.0",
+  "description": "Single User WhatsApp Gateway Exercise\r ##Requirement\r 1. Harus mengunakan Nodejs\r 2. Memakai ExpressJs sebagai API dan Frontend.\r 3. memakai Baileys sebagai WhatsApp Gateway, Dokumentasi [https://whiskeysockets.github.io/Baileys/].",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@adiwajshing/baileys": "^5.0.0",
+    "@hapi/hapi": "^21.3.2",
+    "@whiskeysockets/baileys": "^6.5.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-fileupload": "^1.4.3",
+    "pino": "^8.16.2",
+    "qrcode": "^1.5.3",
+    "socket.io": "^4.7.2"
+  }
+}
