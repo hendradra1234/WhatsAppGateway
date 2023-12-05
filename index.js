@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const http = require("http").Server(app);
 const io = require("socket.io")(http);
-const { WAConnection, MessageType, Mimetype } = require("@adiwajshing/baileys");
+const { makeWASocket, MessageType, Mimetype } = require("@whiskeysockets/baileys");
 const fileUpload = require("express-fileupload");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -17,18 +17,18 @@ app.use(fileUpload());
 // Fungsi untuk koneksi ke WhatsApp
 async function connectToWhatsApp() {
   try {
-    const conn = new WAConnection();
-    conn.logger.level = "debug";
+    const conn = makeWASocket();
+    conn.logLevel = "debug";
 
     conn.on("open", () => {
       console.log("WhatsApp terkoneksi");
     });
 
-    conn.on("ws-close", ({ reason, isReconnecting }) => {
+    conn.on("close", ({ reason, isReconnecting }) => {
       console.log({ reason, isReconnecting });
     });
 
-    conn.on("credentials-updated", () => {
+    conn.on("auth-state-update", () => {
       console.log("Credentials updated!");
     });
 
@@ -37,12 +37,14 @@ async function connectToWhatsApp() {
     });
 
     await conn.connect();
+    return conn; // Mengembalikan koneksi yang sudah terbentuk
   } catch (error) {
     console.error("Gagal terkoneksi ke WhatsApp:", error);
+    throw error;
   }
 }
 
-connectToWhatsApp().catch((err) => console.log("Error:", err));
+// connectToWhatsApp().catch((err) => console.log("Error:", err));
 
 // Endpoint untuk mengirim pesan teks ke nomor WhatsApp
 app.post("/send", async (req, res) => {
@@ -51,7 +53,7 @@ app.post("/send", async (req, res) => {
     if (!number || !message) {
       return res.status(400).json({ error: "Nomor atau pesan kosong" });
     }
-    const conn = await connectToWhatsApp(); // Mengambil koneksi yang sudah terbentuk
+    const conn = await connectToWhatsApp();
     const result = await conn.sendMessage(`${number}@s.whatsapp.net`, { text: message }, MessageType.text);
     res.status(200).json({ message: "Pesan terkirim", result });
   } catch (error) {
@@ -133,17 +135,27 @@ app.get("/scan", (req, res) => {
 // Fungsi socket untuk koneksi antara server dan klien
 io.on("connection", async (socket) => {
   console.log("user connected");
-  socket.on("clientMessage", (message) => {
-    console.log("Message from client:", message);
-  });
+  try {
+    const conn = await connectToWhatsApp();
+    socket.on("clientMessage", async (message) => {
+      console.log("Message from client:", message);
+      // Lakukan operasi yang diperlukan dengan koneksi WhatsApp di sini
+    });
+  } catch (error) {
+    console.error("Error connecting to WhatsApp inside socket:", error);
+  }
+
   socket.on("disconnect", () => {
     console.log("User disconnected");
   });
 });
 
 // Memulai koneksi ke WhatsApp dan menjalankan server Express
-connectToWhatsApp().catch((err) => console.log("Unexpected error: " + err));
-const port = process.env.PORT || 3030;
-http.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+connectToWhatsApp()
+  .then(() => {
+    const port = process.env.PORT || 3030;
+    http.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  })
+  .catch((err) => console.log("Unexpected error: " + err));
