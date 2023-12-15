@@ -1,12 +1,14 @@
-const { useMultiFileAuthState, MessageOptions, Mimitype } = require("@whiskeysockets/baileys");
+const { useMultiFileAuthState, MessageType, MessageOptions, Mimitype } = require("@whiskeysockets/baileys");
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const pino = require("pino");
 const express = require("express");
 const bodyParser = require("body-parser");
 const { error } = require("qrcode-terminal");
 const { Socket } = require("socket.io");
+const path = require("path");
 const app = express();
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 async function connectToWa() {
   const auth = await useMultiFileAuthState("auth");
@@ -25,57 +27,61 @@ async function connectToWa() {
     console.log(msg);
   });
 
-  // endpoint
+  app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
+  });
+  app.get("/someone", (req, res) => {
+    res.sendFile(path.join(__dirname, "./html/someone.html"));
+  });
+  app.get("/group", (req, res) => {
+    res.sendFile(path.join(__dirname, "./html/group.html"));
+  });
+
+  // Endpoint untuk mengirim pesan teks ke nomor WhatsApp (DONE)
   app.post("/send", async (req, res) => {
-    const { phoneNumber, message } = req.body;
-    if (socket && phoneNumber && message) {
-      try {
-        const waMessage = {
-          text: message,
-        };
-        await socket.sendMessage(phoneNumber, message);
-        res.send(`pesan ${message}, nomor ${phoneNumber}`);
-      } catch (error) {
-        console.error("yah gagal:", error);
-        res.send("gagal", +error.message);
-      }
-    } else {
-      res.status(400).send("gagal lagi");
+    const phoneNumber = req.body.phoneNumber;
+    const pesan = req.body.pesan;
+    console.log("nomor:", phoneNumber);
+    console.log("pesan:", pesan);
+    console.log(typeof pesan);
+    const apa = {
+      text: pesan,
+    };
+    try {
+      await socket.sendMessage(phoneNumber, { text: pesan });
+      res.send({ message: "okee" });
+    } catch (error) {
+      console.error(`error nih: ${error.message}`);
     }
   });
 
-  // Endpoint untuk mengirim pesan media ke nomor WhatsApp
+  // Endpoint untuk mengirim pesan media ke nomor WhatsApp (DONE)
   app.post("/send-media", async (req, res) => {
     const { phoneNumber, mediaURL, caption } = req.body;
-    if (socket && phoneNumber && mediaURL) {
-      try {
-        await socket.sendImage(phoneNumber, mediaURL, caption);
-        res.send(`Pesan media terkirim ke ${phoneNumber}`);
-      } catch (error) {
-        res.status(500).send("Gagal mengirim pesan media");
-      }
-    } else {
-      res.status(400).send("Parameter yang diperlukan tidak lengkap");
+    try {
+      await socket.sendMessage(phoneNumber, { image: { url: mediaURL } }, { caption: caption });
+      res.send(`pesan berhasil terkirim`);
+    } catch (error) {
+      console.error(`ada yang error nih:${error.message}`);
     }
   });
 
   // Endpoint untuk mengirim pesan media ke grup WhatsApp
   app.post("/send-media-group", async (req, res) => {
     const { groupId, mediaURL, caption } = req.body;
-    if (socket && groupId && mediaURL) {
-      try {
-        await socket.sendImage(groupId, mediaURL, caption, { chatId: groupId, isGroup: true });
-        res.send(`Pesan media terkirim ke grup ${groupId}`);
-      } catch (error) {
-        res.status(500).send("Gagal mengirim pesan media");
-      }
-    } else {
-      res.status(400).send("Parameter yang diperlukan tidak lengkap");
+    console.log("id group:", groupId);
+    console.log("url:", mediaURL);
+    console.log("caption:", caption);
+    try {
+      await socket.sendMessage(groupId, { image: { url: mediaURL } }, { caption: caption });
+      res.send(`berhasil terkirim `);
+    } catch (error) {
+      console.log(`ada error nih:${error.message}`);
     }
   });
 }
 connectToWa();
 // ===========
-app.listen(2005, () => {
+app.listen(2006, () => {
   console.log("server running");
 });
